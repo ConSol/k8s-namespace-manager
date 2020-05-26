@@ -1,5 +1,7 @@
 package de.consol.labs.k8s.nsman;
 
+import java.util.Objects;
+
 import org.springframework.stereotype.Component;
 
 import de.consol.labs.k8s.nsman.crd.NamespaceManager;
@@ -24,7 +26,12 @@ public class NamespaceManagerEventHandler
   public void onUpdate(final NamespaceManager oldObj,
       final NamespaceManager newObj) {
     log.info("update.\nold:\n{}\nnew:\n{}", oldObj, newObj);
-    namespaceManagersQueueUtil.enqueue(newObj);
+    if (Objects.equals(oldObj.getSpec(), newObj.getSpec())) {
+      log.info("no changes in spec");
+    } else {
+      log.info("there are changes in spec");
+      namespaceManagersQueueUtil.enqueue(newObj);
+    }
   }
 
   @Override
