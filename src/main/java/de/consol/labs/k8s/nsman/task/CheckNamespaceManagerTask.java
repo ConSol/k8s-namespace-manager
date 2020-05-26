@@ -180,7 +180,7 @@ public class CheckNamespaceManagerTask implements Runnable {
         namespaceUtil.scaleDown(ns, selectors);
         log.info("scaled down \"{}\" namespace", nsName);
         return true;
-      case WEB_HOOK:
+      case WEBHOOK:
         if (Objects.nonNull(params) && Objects.nonNull(params.getUrl())) {
           final String url = params.getUrl();
           log.info("HTTP POST {}", url);

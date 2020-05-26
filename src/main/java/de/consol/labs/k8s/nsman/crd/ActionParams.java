@@ -19,7 +19,7 @@ public class ActionParams {
   // #region SCALE_DOWN
   private List<K8sObjectSelector> selectors;
   // #endregion
-  // #region WEB_HOOK
+  // #region WEBHOOK
   private String url;
   // #endregion
 }
