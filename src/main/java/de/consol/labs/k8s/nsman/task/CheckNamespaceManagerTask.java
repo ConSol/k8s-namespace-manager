@@ -139,7 +139,7 @@ public class CheckNamespaceManagerTask implements Runnable {
         }
         if (Objects.isNull(pods) || Objects.isNull(pods.getItems())) {
           log.debug("no pods");
-          return false;
+          return true;
         }
         log.debug("found {} pods", pods.getItems().size());
         log.debug("pods: {}", pods.getItems().stream()
