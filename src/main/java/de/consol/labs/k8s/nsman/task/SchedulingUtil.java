@@ -45,10 +45,20 @@ public class SchedulingUtil {
       log.warn("no policies. manager = {}", manager);
       return null;
     }
+    final Namespace ns = namespaceUtil.getManagedNamespace(manager);
+    if (Objects.isNull(ns)) {
+      return getDefaultScheduledAt();
+    }
+    if (Objects.nonNull(ns.getStatus())
+        && Objects.nonNull(ns.getStatus().getPhase())
+        && ns.getStatus().getPhase().toLowerCase().equals("terminating")) {
+      log.info("{} is terminating", K8sMetadataUtil.format(ns));
+      return getDefaultScheduledAt();
+    }
     final Map<Condition, Instant> conditions =
         manager.getSpec().getPolicies().stream().map(Policy::getCondition)
             .collect(Collectors.toMap(Function.identity(),
-                c -> getScheduleAtForCondition(manager, c)));
+                c -> getScheduleAtForCondition(manager, c, ns)));
     if (conditions.isEmpty()) {
       log.warn("no conditons. manager = {}", manager);
       return null;
@@ -60,14 +70,10 @@ public class SchedulingUtil {
   }
 
   private Instant getScheduleAtForCondition(final NamespaceManager manager,
-      final Condition condition) {
+      final Condition condition, final Namespace ns) {
     if (Objects.isNull(condition)) {
       log.warn("condition is not provided");
       return null;
-    }
-    final Namespace ns = namespaceUtil.getManagedNamespace(manager);
-    if (Objects.isNull(ns)) {
-      return getDefaultScheduledAt();
     }
     final Instant nsCreationTs = K8sMetadataUtil.getCreationTimestamp(ns);
     final Instant firstCheckTs =
