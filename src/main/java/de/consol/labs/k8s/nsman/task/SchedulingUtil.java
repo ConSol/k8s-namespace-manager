@@ -70,10 +70,14 @@ public class SchedulingUtil {
       return null;
     }
     final Instant nsCreationTs = K8sMetadataUtil.getCreationTimestamp(ns);
+    log.debug("nsCreationTs = {}", nsCreationTs);
     final Instant firstCheckTs =
         K8sMetadataUtil.getFirstCheckTimestamp(manager);
+    log.debug("firstCheckTs = {}", firstCheckTs);
     final Instant lastCheckTs = K8sMetadataUtil.getLastCheckTimestamp(manager);
+    log.debug("lastCheckTs = {}", lastCheckTs);
     final ConditionParams params = condition.getParams();
+    log.debug("params = {}", params);
     switch (condition.getType()) {
       case TTL:
         final Duration ttl = ConditionParams.getTtl(params);
@@ -81,18 +85,23 @@ public class SchedulingUtil {
         return nsCreationTs.plus(ttl);
       case PODS_SUCCEED:
         final Duration initialDelay = ConditionParams.getInitialDelay(params);
+        log.debug("initialDelay = {} sec", initialDelay.toSeconds());
         if (Objects.isNull(firstCheckTs)) {
+          log.debug("1st check has not been done yet");
           return nsCreationTs.plus(initialDelay);
         }
         if (Duration.between(firstCheckTs, Instant.now())
             .compareTo(initialDelay) < 0) {
+          log.debug("initial delay must be satisfied");
           return firstCheckTs.plus(initialDelay);
         }
         final Duration period = ConditionParams.getPeriod(params);
         log.debug("period = {} sec", period);
         if (Objects.nonNull(lastCheckTs)) {
+          log.debug("using last check");
           return lastCheckTs.plus(period);
         }
+        log.error("1st check is provided but the last check is not");
         return firstCheckTs.plus(period);
       default:
         log.warn("unknown condition type in {}", condition);
