@@ -4,13 +4,19 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+@JsonDeserialize(using = JsonDeserializer.None.class)
 @Setter
 @Getter
 @ToString
+@EqualsAndHashCode
 public class ConditionParams {
   // #region TTL
   private static final Duration DEFAULT_TTL = Duration.ofMinutes(30);
