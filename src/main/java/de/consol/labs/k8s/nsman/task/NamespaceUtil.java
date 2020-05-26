@@ -95,4 +95,14 @@ public class NamespaceUtil {
       });
     }
   }
+
+  public static boolean isTerminating(final Namespace ns) {
+    final boolean result = Objects.nonNull(ns.getStatus())
+        && Objects.nonNull(ns.getStatus().getPhase())
+        && ns.getStatus().getPhase().toLowerCase().equals("terminating");
+    if (result) {
+      log.debug("{} is terminating", K8sMetadataUtil.format(ns));
+    }
+    return result;
+  }
 }

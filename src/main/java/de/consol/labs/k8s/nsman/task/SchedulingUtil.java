@@ -46,13 +46,7 @@ public class SchedulingUtil {
       return null;
     }
     final Namespace ns = namespaceUtil.getManagedNamespace(manager);
-    if (Objects.isNull(ns)) {
-      return getDefaultScheduledAt();
-    }
-    if (Objects.nonNull(ns.getStatus())
-        && Objects.nonNull(ns.getStatus().getPhase())
-        && ns.getStatus().getPhase().toLowerCase().equals("terminating")) {
-      log.info("{} is terminating", K8sMetadataUtil.format(ns));
+    if (Objects.isNull(ns) || NamespaceUtil.isTerminating(ns)) {
       return getDefaultScheduledAt();
     }
     final Map<Condition, Instant> conditions =

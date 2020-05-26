@@ -91,7 +91,7 @@ public class CheckNamespaceManagerTask implements Runnable {
       return;
     }
     final Namespace ns = namespaceUtil.getManagedNamespace(manager);
-    if (Objects.isNull(ns)) {
+    if (Objects.isNull(ns) || NamespaceUtil.isTerminating(ns)) {
       return;
     }
     final Map<Policy, Boolean> policyEvaluationResults =
@@ -207,5 +207,6 @@ public class CheckNamespaceManagerTask implements Runnable {
     k8sNamespaceManagerClient
         .inNamespace(namespaceManagerIdentifier.getNamespace())
         .withName(namespaceManagerIdentifier.getName()).patch(manager);
+    log.debug("updated annotations");
   }
 }
