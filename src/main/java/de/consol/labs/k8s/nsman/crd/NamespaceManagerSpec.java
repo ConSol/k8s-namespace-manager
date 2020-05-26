@@ -16,6 +16,7 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode
 public class NamespaceManagerSpec {
+  private boolean isDeactivated;
   private String namespace;
   private List<Policy> policies;
 }

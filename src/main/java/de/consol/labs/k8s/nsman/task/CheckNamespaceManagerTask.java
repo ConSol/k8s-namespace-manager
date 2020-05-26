@@ -29,6 +29,7 @@ import de.consol.labs.k8s.nsman.crd.DoneableNamespaceManager;
 import de.consol.labs.k8s.nsman.crd.K8sObjectSelector;
 import de.consol.labs.k8s.nsman.crd.NamespaceManager;
 import de.consol.labs.k8s.nsman.crd.NamespaceManagerList;
+import de.consol.labs.k8s.nsman.crd.NamespaceManagerSpec;
 import de.consol.labs.k8s.nsman.crd.Policy;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.PodList;
@@ -69,10 +70,13 @@ public class CheckNamespaceManagerTask implements Runnable {
           namespaceManagerIdentifier);
       return;
     }
+    if (NamespaceManager.isDeactivated(manager)) {
+      return;
+    }
     log.info("checking {}", K8sMetadataUtil.format(manager));
     try {
       check(manager);
-      updateAnnotations(manager);
+      updateAnnotations();
     } catch (final RuntimeException e) {
       log.error(
           "failure during task execution but show must go on: manager will be enqueued",
@@ -153,7 +157,11 @@ public class CheckNamespaceManagerTask implements Runnable {
 
   private boolean tryApplyAction(final Namespace ns, final Policy policy) {
     try {
-      return applyAction(ns, policy);
+      final boolean result = applyAction(ns, policy);
+      if (result) {
+        deactivateManager();
+      }
+      return result;
     } catch (final RuntimeException e) {
       log.error("failed to apply action", e);
       return false;
@@ -202,11 +210,38 @@ public class CheckNamespaceManagerTask implements Runnable {
     }
   }
 
-  private void updateAnnotations(final NamespaceManager manager) {
-    final Instant now = Instant.now();
+  private void deactivateManager() {
+    final NamespaceManager manager = k8sNamespaceManagerClient
+        .inNamespace(namespaceManagerIdentifier.getNamespace())
+        .withName(namespaceManagerIdentifier.getName()).get();
+    if (Objects.isNull(manager)) {
+      log.warn("manager has been deleted. manager id = {}",
+          namespaceManagerIdentifier);
+      return;
+    }
+    if (Objects.isNull(manager.getSpec())) {
+      manager.setSpec(new NamespaceManagerSpec());
+    }
+    manager.getSpec().setDeactivated(true);
+    k8sNamespaceManagerClient
+        .inNamespace(namespaceManagerIdentifier.getNamespace())
+        .withName(namespaceManagerIdentifier.getName()).patch(manager);
+    log.info("deactivated {}", K8sMetadataUtil.format(manager));
+  }
+
+  private void updateAnnotations() {
+    final NamespaceManager manager = k8sNamespaceManagerClient
+        .inNamespace(namespaceManagerIdentifier.getNamespace())
+        .withName(namespaceManagerIdentifier.getName()).get();
+    if (Objects.isNull(manager)) {
+      log.warn("manager has been deleted. manager id = {}",
+          namespaceManagerIdentifier);
+      return;
+    }
     if (Objects.isNull(manager.getMetadata().getAnnotations())) {
       manager.getMetadata().setAnnotations(new HashMap<>());
     }
+    final Instant now = Instant.now();
     final Map<String, String> annotations =
         manager.getMetadata().getAnnotations();
     if (Objects.isNull(K8sMetadataUtil.getFirstCheckTimestamp(manager))) {

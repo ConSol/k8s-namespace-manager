@@ -40,6 +40,9 @@ public class SchedulingUtil {
           id);
       return null;
     }
+    if (NamespaceManager.isDeactivated(manager)) {
+      return null;
+    }
     if (Objects.isNull(manager.getSpec())
         || Objects.isNull(manager.getSpec().getPolicies())) {
       log.warn("no policies. manager = {}", manager);
