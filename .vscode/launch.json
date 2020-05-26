@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "k8s-namespace-manager",
+            "request": "launch",
+            "mainClass": "de.consol.labs.k8s.nsman.EntryPoint",
+            "projectName": "k8s-namespace-manager"
+        }
+    ]
+}
