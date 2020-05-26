@@ -69,6 +69,7 @@ public class CheckNamespaceManagerTask implements Runnable {
           namespaceManagerIdentifier);
       return;
     }
+    log.info("checking {}", K8sMetadataUtil.format(manager));
     try {
       check(manager);
       updateAnnotations(manager);
@@ -77,6 +78,8 @@ public class CheckNamespaceManagerTask implements Runnable {
           "failure during task execution but show must go on: manager will be enqueued",
           e);
     }
+    log.info("enqueue {} for scheduling a check task later",
+        K8sMetadataUtil.format(manager));
     namespaceManagersQueueUtil.enqueue(manager);
   }
 
