@@ -107,11 +107,15 @@ public class CheckNamespaceManagerTask implements Runnable {
       final Namespace ns, final Policy policy) {
     if (Objects.isNull(policy) || Objects.isNull(policy.getCondition())
         || Objects.isNull(policy.getCondition().getType())) {
+      log.error("{} in {} does not have condition", policy, manager);
       return false;
     }
     final Condition condition = policy.getCondition();
+    log.debug("condition = {}", condition);
     final String nsName = K8sMetadataUtil.getName(ns);
+    log.debug("nsName = {}", nsName);
     final Instant nsCreationTs = K8sMetadataUtil.getCreationTimestamp(ns);
+    log.debug("nsCreationTs = {}", nsCreationTs);
     final ConditionParams params = condition.getParams();
     switch (condition.getType()) {
       case TTL:
@@ -121,6 +125,7 @@ public class CheckNamespaceManagerTask implements Runnable {
       case PODS_SUCCEED:
         final Duration initialDelay = ConditionParams.getInitialDelay(params);
         if (nsCreationTs.plus(initialDelay).compareTo(Instant.now()) > 0) {
+          log.debug("initial delay has not elapsed yet");
           return false;
         }
         final PodList pods;
@@ -133,9 +138,12 @@ public class CheckNamespaceManagerTask implements Runnable {
           pods = k8sClient.pods().inNamespace(nsName).list();
         }
         if (Objects.isNull(pods) || Objects.isNull(pods.getItems())) {
+          log.debug("no pods");
           return false;
         }
         log.debug("found {} pods", pods.getItems().size());
+        log.debug("pods: {}", pods.getItems().stream()
+            .map(K8sMetadataUtil::format).collect(Collectors.joining(", ")));
         return pods.getItems().stream().allMatch(K8sPodUtil::isSucceeded);
       default:
         log.warn("unknown condition type in {}", condition);
@@ -158,6 +166,7 @@ public class CheckNamespaceManagerTask implements Runnable {
       log.error("action is not properly defined");
       return false;
     }
+    log.debug("action = {}", policy.getAction());
     final String nsName = K8sMetadataUtil.getName(ns);
     final ActionParams params = policy.getAction().getParams();
     switch (policy.getAction().getType()) {
