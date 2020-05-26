@@ -77,7 +77,7 @@ public class SchedulingUtil {
     switch (condition.getType()) {
       case TTL:
         final Duration ttl = ConditionParams.getTtl(params);
-        log.debug("ttl = {}", ttl);
+        log.debug("ttl = {} sec", ttl.toSeconds());
         return nsCreationTs.plus(ttl);
       case PODS_SUCCEED:
         final Duration initialDelay = ConditionParams.getInitialDelay(params);

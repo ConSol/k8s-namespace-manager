@@ -113,7 +113,7 @@ public class CheckNamespaceManagerTask implements Runnable {
     switch (condition.getType()) {
       case TTL:
         final Duration ttl = ConditionParams.getTtl(params);
-        log.debug("ttl = {}", ttl);
+        log.debug("ttl = {} sec", ttl.toSeconds());
         return nsCreationTs.plus(ttl).compareTo(Instant.now()) <= 0;
       case PODS_SUCCEED:
         final Duration initialDelay = ConditionParams.getInitialDelay(params);
