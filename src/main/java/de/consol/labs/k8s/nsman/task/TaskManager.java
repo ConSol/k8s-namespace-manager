@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledFuture;
 
@@ -21,8 +22,10 @@ import lombok.extern.slf4j.Slf4j;
 public class TaskManager implements Runnable {
   private static final Duration EPSILON = Duration.ofSeconds(5);
 
+  private final ConcurrentMap<NamespaceManagerIdentifier, ScheduledTaskInfo> tasks =
+      new ConcurrentHashMap<>();
+
   private final BlockingQueue<String> namespaceManagersQueue;
-  private final ConcurrentMap<NamespaceManagerIdentifier, ScheduledTaskInfo> tasks;
   private final ObjectFactory<CheckNamespaceManagerTask> taskFactory;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final SchedulingUtil schedulingUtil;
