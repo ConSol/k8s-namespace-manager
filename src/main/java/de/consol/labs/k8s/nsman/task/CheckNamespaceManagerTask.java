@@ -11,12 +11,11 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestOperations;
+import org.springframework.web.reactive.function.client.ClientResponse;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import de.consol.labs.k8s.nsman.K8sAnnotation;
 import de.consol.labs.k8s.nsman.K8sMetadataUtil;
@@ -50,7 +49,7 @@ public class CheckNamespaceManagerTask implements Runnable {
   private final MixedOperation<NamespaceManager, NamespaceManagerList, DoneableNamespaceManager, Resource<NamespaceManager, DoneableNamespaceManager>> k8sNamespaceManagerClient;
   private final KubernetesClient k8sClient;
   private final NamespaceUtil namespaceUtil;
-  private final RestOperations restTemplate;
+  private final WebClient webClient;
 
   @Setter
   @Getter
@@ -192,15 +191,13 @@ public class CheckNamespaceManagerTask implements Runnable {
         if (Objects.nonNull(params) && Objects.nonNull(params.getUrl())) {
           final String url = params.getUrl();
           log.info("HTTP POST {}", url);
-          final HttpHeaders headers = new HttpHeaders();
-          headers.setContentType(MediaType.APPLICATION_JSON);
-          final WebhookPayload payload = new WebhookPayload();
-          final HttpEntity<WebhookPayload> request =
-              new HttpEntity<>(payload, headers);
-          final ResponseEntity<String> response =
-              restTemplate.postForEntity(url, request, String.class);
-          log.info("response status code = {}", response.getStatusCode());
-          return response.getStatusCode().is2xxSuccessful();
+          final WebhookPayload payload =
+              new WebhookPayload(namespaceManagerIdentifier, policy, nsName);
+          final ClientResponse response = webClient.post().uri(params.getUrl())
+              .contentType(MediaType.APPLICATION_JSON).bodyValue(payload)
+              .exchange().block();
+          log.info("response status code = {}", response.statusCode());
+          return response.statusCode().is2xxSuccessful();
         }
         log.error("URL for webhook is not defined");
         return false;
