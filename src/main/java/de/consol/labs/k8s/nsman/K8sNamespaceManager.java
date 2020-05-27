@@ -1,8 +1,8 @@
 package de.consol.labs.k8s.nsman;
 
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.stereotype.Component;
 
 import de.consol.labs.k8s.nsman.config.K8sNamespaceManagerConfig.K8sNamespaceManagerProperties;
 import de.consol.labs.k8s.nsman.crd.NamespaceManager;
@@ -14,7 +14,7 @@ import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-@SpringBootApplication
+@Component
 @Slf4j
 @RequiredArgsConstructor
 public class K8sNamespaceManager implements CommandLineRunner {
