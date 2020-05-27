@@ -1,0 +1,48 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example-01
+---
+apiVersion: k8s.consol.de/v1beta1
+kind: NamespaceManager
+metadata:
+  name: example-01
+  namespace: example-01
+spec:
+  ### "namespace" property is optional.
+  ### when it's not provided
+  ### then the name of the NamespaceManager is taken
+  ### which is "example-01"
+  # namespace: example-01
+  policies:
+    - name: delete namespace when TTL elapses
+      condition:
+        type: TTL
+        params:
+          ttlSeconds: 60
+      action:
+        type: DELETE
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-married-secretive-flat-app
+  namespace: example-01
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: test-app-01
+  template:
+    metadata:
+      labels:
+        app: test-app-01
+    spec:
+      containers:
+        - name: main
+          image: alpine
+          args:
+            - "sh"
+            - "-c"
+            - "while sleep 10; do echo memory stats:; free; echo; done"
