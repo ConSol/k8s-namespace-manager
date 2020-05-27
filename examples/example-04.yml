@@ -1,0 +1,158 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example-04
+---
+apiVersion: k8s.consol.de/v1beta1
+kind: NamespaceManager
+metadata:
+  name: example-04
+  namespace: example-04
+spec:
+  policies:
+    - name: call webhook when specific pods succeed
+      condition:
+        type: PODS_SUCCEED
+        params:
+          podLabels:
+            component: main
+          initialDelaySeconds: 60
+          periodSeconds: 10
+      action:
+        type: WEBHOOK
+        params:
+          url: http://webhooky/api/webhook/my-super-awesome-webhook-04
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helper-scripts
+  namespace: example-04
+data:
+  simulate-long-running-test.sh: |-
+    #!/usr/bin/env sh
+    set -e
+    echo simulating long running test
+    COUNTER=0
+    while [ ${COUNTER} -lt ${MOCK_TEST_ITERATIONS:-10} ]; do
+      COUNTER=`expr ${COUNTER} + 1`
+      sleep ${MOCK_TEST_SLEEP_SECONDS:-3}
+      echo finished iteration ${COUNTER}
+    done
+    if [ ! -z "${MOCK_TEST_SIMULATE_FAILURE}" ]; then
+      echo simulating failure
+      exit 1
+    fi
+    echo success
+  node-server: |-
+    #!/usr/bin/env node
+    const http = require("http");
+    const server = http.createServer((req, res) => {
+      console.log(`received request at ${new Date().toISOString()}`);
+      console.log(`${req.method} ${req.url}`);
+      console.log(`headers:\n${JSON.stringify(req.headers || {}, null, 2)}`);
+      const chunks = [];
+      req
+        .on("data", (chunk) => {
+          chunks.push(chunk);
+        })
+        .on("end", () => {
+          const body = Buffer.concat(chunks).toString();
+          console.log(`body:\n${body}`);
+          res.writeHead(200);
+          res.end("OK");
+          console.log("response has been sent");
+        })
+        .on("error", (err) => {
+          console.log(`got error: ${err}`);
+          res.writeHead(500);
+          res.end("FAILED :(");
+          console.log("error response has been sent");
+        });
+    });
+    const port = process.env.PORT || 80;
+    server.listen(port);
+    console.log(`server is listening on port ${port}`);
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-toothsome-spicy-spiritual-app
+  namespace: example-04
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: test-app-04
+        component: main
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: main
+          image: alpine
+          ### uncomment to test
+          ### that operator
+          ### will not call the webhook
+          # env:
+          #   - name: MOCK_TEST_SIMULATE_FAILURE
+          #     value: "yes"
+          command:
+            - "/opt/helper-scripts/simulate-long-running-test.sh"
+          volumeMounts:
+            - mountPath: /opt/helper-scripts
+              name: helper-scripts
+      volumes:
+        - name: helper-scripts
+          configMap:
+            name: helper-scripts
+            defaultMode: 0555
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhooky
+  namespace: example-04
+spec:
+  ports:
+    - port: 80
+      name: web
+  selector:
+    app: test-app-04
+    component: webhook
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhooky
+  namespace: example-04
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-app-04
+      component: webhook
+  template:
+    metadata:
+      labels:
+        app: test-app-04
+        component: webhook
+    spec:
+      containers:
+        - name: main
+          image: node:14.3.0-alpine3.11
+          ports:
+            - containerPort: 80
+          command:
+            - "/opt/helper-scripts/node-server"
+          volumeMounts:
+            - mountPath: /opt/helper-scripts
+              name: helper-scripts
+      volumes:
+        - name: helper-scripts
+          configMap:
+            name: helper-scripts
+            defaultMode: 0555
