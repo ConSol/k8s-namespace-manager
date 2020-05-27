@@ -1,0 +1,133 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example-02
+---
+apiVersion: k8s.consol.de/v1beta1
+kind: NamespaceManager
+metadata:
+  name: ejemplo-dos
+  ### a manager does not have to reside
+  ### in the same namespace it manages
+  namespace: namespace-manager
+spec:
+  ############################################################
+  ### watch this flag
+  ### to be flipped to true
+  ### by the operator
+  ### when the namespace deletion action
+  ### gets applied
+  deactivated: false
+  ### this flag
+  ### can be set to true
+  ### right at the creation
+  ### (the manager will be then "dormant")
+  ### and then it can be changed to false
+  ### when one wants to activate the manager
+  ############################################################
+  namespace: example-02
+  policies:
+    - name: delete namespace when specific pods succeed
+      condition:
+        type: PODS_SUCCEED
+        params:
+          ### which pods need to be checked
+          podLabels:
+            component: main
+            type: test
+          ### how much to wait before doing checks
+          initialDelaySeconds: 60
+          ### interval between checks
+          periodSeconds: 10
+      action:
+        type: DELETE
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helper-scripts
+  namespace: example-02
+data:
+  simulate-long-running-test.sh: |-
+    #!/usr/bin/env sh
+    set -e
+    echo simulating long running test
+    COUNTER=0
+    while [ ${COUNTER} -lt ${MOCK_TEST_ITERATIONS:-20} ]; do
+      COUNTER=`expr ${COUNTER} + 1`
+      sleep ${MOCK_TEST_SLEEP_SECONDS:-3}
+      echo finished iteration ${COUNTER}
+    done
+    if [ ! -z "${MOCK_TEST_SIMULATE_FAILURE}" ]; then
+      echo simulating failure
+      exit 1
+    fi
+    echo success
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-consistent-tested-superb-app
+  namespace: example-02
+spec:
+  completions: 3
+  parallelism: 2
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: test-app-02
+        ### these pods will be checked for successful completions
+        component: main
+        type: test
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: main
+          image: alpine
+          ### uncomment to test
+          ### that operator
+          ### will not delete the namespace
+          ### because the pods will fail
+          # env:
+          #   - name: MOCK_TEST_SIMULATE_FAILURE
+          #     value: "yes"
+          command:
+            - "/opt/helper-scripts/simulate-long-running-test.sh"
+          volumeMounts:
+            - mountPath: /opt/helper-scripts
+              name: helper-scripts
+      volumes:
+        - name: helper-scripts
+          configMap:
+            name: helper-scripts
+            defaultMode: 0555
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-harmonious-acoustic-savory-app
+  namespace: example-02
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: test-app-02
+      component: auxiliary
+      type: test
+  template:
+    metadata:
+      labels:
+        app: test-app-02
+        ### these pods will not be checked
+        component: auxiliary
+        type: test
+    spec:
+      containers:
+        - name: main
+          image: alpine
+          args:
+            - "sh"
+            - "-c"
+            - "while sleep 10; do echo memory stats:; free; echo; done"
