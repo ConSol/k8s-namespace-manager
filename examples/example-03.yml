@@ -1,0 +1,225 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example-03
+---
+apiVersion: k8s.consol.de/v1beta1
+kind: NamespaceManager
+metadata:
+  name: przyklad-trzeci
+  namespace: example-03
+spec:
+  namespace: example-03
+  policies:
+    - name: scale down deployments and stateful sets when specific pods succeed
+      condition:
+        type: PODS_SUCCEED
+        params:
+          podLabels:
+            component: main
+          initialDelaySeconds: 60
+          periodSeconds: 10
+      action:
+        type: SCALE_DOWN
+        params:
+          selectors:
+            - kind: Deployment
+              labels:
+                ### these are labels on Deployments
+                ### and not the labels of their Pods
+                isScaleDown: "yes"
+            - kind: StatefulSet
+              ### no "labels" property
+              ### so all StatefulSets
+              ### are going to be scaled down
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helper-scripts
+  namespace: example-03
+data:
+  simulate-long-running-test.sh: |-
+    #!/usr/bin/env sh
+    set -e
+    echo simulating long running test
+    COUNTER=0
+    while [ ${COUNTER} -lt ${MOCK_TEST_ITERATIONS:-20} ]; do
+      COUNTER=`expr ${COUNTER} + 1`
+      sleep ${MOCK_TEST_SLEEP_SECONDS:-3}
+      echo finished iteration ${COUNTER}
+    done
+    if [ ! -z "${MOCK_TEST_SIMULATE_FAILURE}" ]; then
+      echo simulating failure
+      exit 1
+    fi
+    echo success
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-lonely-chivalrous-careful-app
+  namespace: example-03
+spec:
+  completions: 3
+  parallelism: 2
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: test-app-03
+        component: main
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: main
+          image: alpine
+          ### uncomment to test
+          ### that operator will not
+          ### scale down the namespace
+          # env:
+          #   - name: MOCK_TEST_SIMULATE_FAILURE
+          #     value: "yes"
+          command:
+            - "/opt/helper-scripts/simulate-long-running-test.sh"
+          volumeMounts:
+            - mountPath: /opt/helper-scripts
+              name: helper-scripts
+      volumes:
+        - name: helper-scripts
+          configMap:
+            name: helper-scripts
+            defaultMode: 0555
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-marked-comfortable-curious-app
+  namespace: example-03
+  labels:
+    ### it will be scaled down
+    isScaleDown: "yes"
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: test-app-03
+      component: c1
+  template:
+    metadata:
+      labels:
+        app: test-app-03
+        component: c1
+    spec:
+      containers:
+        - name: main
+          image: alpine
+          args:
+            - "sh"
+            - "-c"
+            - "while sleep 10; do echo memory stats:; free; echo; done"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-hot-amusing-protective-app
+  namespace: example-03
+  ### it will not be scaled down
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app-03
+      component: c2
+  template:
+    metadata:
+      labels:
+        app: test-app-03
+        component: c2
+    spec:
+      containers:
+        - name: main
+          image: alpine
+          args:
+            - "sh"
+            - "-c"
+            - "while sleep 10; do echo memory stats:; free; echo; done"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-outrageous-seemly-unarmed-app
+  namespace: example-03
+spec:
+  ports:
+    - port: 80
+      name: web
+  selector:
+    app: test-app-03
+    component: c3
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-outrageous-seemly-unarmed-app
+  namespace: example-03
+spec:
+  serviceName: my-outrageous-seemly-unarmed-app
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app-03
+      component: c3
+  template:
+    metadata:
+      labels:
+        app: test-app-03
+        component: c3
+    spec:
+      containers:
+        - name: main
+          image: alpine
+          args:
+            - "sh"
+            - "-c"
+            - "while sleep 10; do echo memory stats:; free; echo; done"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-imminent-whispering-wholesale-app
+  namespace: example-03
+spec:
+  ports:
+    - port: 80
+      name: web
+  selector:
+    app: test-app-03
+    component: c4
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-imminent-whispering-wholesale-app
+  namespace: example-03
+spec:
+  serviceName: my-imminent-whispering-wholesale-app
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app-03
+      component: c4
+  template:
+    metadata:
+      labels:
+        app: test-app-03
+        component: c4
+    spec:
+      containers:
+        - name: main
+          image: alpine
+          args:
+            - "sh"
+            - "-c"
+            - "while sleep 10; do echo memory stats:; free; echo; done"
