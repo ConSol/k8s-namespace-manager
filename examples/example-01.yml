@@ -20,7 +20,7 @@ spec:
       condition:
         type: TTL
         params:
-          ttlSeconds: 60
+          ttlSeconds: 40
       action:
         type: DELETE
 ---
