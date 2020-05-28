@@ -33,7 +33,7 @@ spec:
                     properties:
                       name:
                         type: string
-                        pattern: "^\w[\w ]{1,90}\w$"
+                        pattern: '^\w[\w ]{1,90}\w$'
                       condition:
                         type: object
                         properties:
