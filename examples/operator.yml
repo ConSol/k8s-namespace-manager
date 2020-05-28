@@ -1,0 +1,180 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: namespace-manager
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: namespacemanagers.k8s.consol.de
+spec:
+  group: k8s.consol.de
+  versions:
+    - name: v1beta1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                deactivated:
+                  type: boolean
+                namespace:
+                  type: string
+                policies:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        pattern: "^\w[\w ]{1,90}\w$"
+                      condition:
+                        type: object
+                        properties:
+                          type:
+                            type: string
+                            enum:
+                              - TTL
+                              - PODS_SUCCEED
+                          params:
+                            type: object
+                            properties:
+                              ttlSeconds:
+                                type: integer
+                                format: int64
+                              podLabels:
+                                type: object
+                                additionalProperties: true
+                              initialDelaySeconds:
+                                type: integer
+                                format: int64
+                              periodSeconds:
+                                type: integer
+                                format: int64
+                        required:
+                          - type
+                      action:
+                        type: object
+                        properties:
+                          type:
+                            type: string
+                            enum:
+                              - DELETE
+                              - SCALE_DOWN
+                              - WEBHOOK
+                          params:
+                            type: object
+                            properties:
+                              selectors:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    kind:
+                                      type: string
+                                    labels:
+                                      type: object
+                                      additionalProperties: true
+                                  required:
+                                    - kind
+                              url:
+                                type: string
+                                format: uri
+                        required:
+                          - type
+                    required:
+                      - name
+                      - condition
+                      - action
+              required:
+                - policies
+          required:
+            - spec
+  scope: Namespaced
+  names:
+    plural: namespacemanagers
+    singular: namespacemanager
+    kind: NamespaceManager
+    shortNames:
+      - nsman
+############################################################
+### RBAC stuff
+############################################################
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: namespace-manager-role
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: ["extensions", "apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "patch"]
+  - apiGroups: ["k8s.consol.de"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: namespace-manager-sa
+  namespace: namespace-manager
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: grant-namespace-manager-role-to-namespace-manager-sa
+  namespace: namespace-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: namespace-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: namespace-manager-sa
+    namespace: namespace-manager
+############################################################
+### operator deployment
+############################################################
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: namespace-manager-operator
+  namespace: namespace-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      operator: namespace-manager
+  template:
+    metadata:
+      labels:
+        operator: namespace-manager
+    spec:
+      serviceAccountName: namespace-manager-sa
+      containers:
+        - name: main
+          image: progaddict/k8s-namespace-manager:0.2
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
