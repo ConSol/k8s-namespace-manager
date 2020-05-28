@@ -22,7 +22,7 @@ spec:
       action:
         type: WEBHOOK
         params:
-          url: http://webhooky/api/webhook/my-super-awesome-webhook-04
+          url: http://webhooky.example-04.svc.cluster.local/api/webhook/my-super-awesome-webhook
 ---
 apiVersion: v1
 kind: ConfigMap
