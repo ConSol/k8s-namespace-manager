@@ -143,7 +143,8 @@ namespace-manager   Active   33m
 
 * in this example operator detects
 that certain pods succeed
-and it scales down specified deployments and stateful
+and it scales down specified deployments
+and stateful sets
 in a namespace.
 * start example:
 ```
